@@ -15,7 +15,15 @@ WriteMakefile(
         'ExtUtils::MakeMaker' => '0',
     },
     BUILD_REQUIRES => {
-        'Test::More' => '0',
+        'Test::More'		=> '0',
+        'Path::Class'		=> '0',
+        'Time::HiRes'		=> '0',
+        'Carp'				=> '0',
+        'File::Path'		=> '0',
+        'Test::Exception'	=> '0',
+        'File::Spec'		=> '0',
+        'POSIX'				=> '0',
+        'Data::Dumper'		=> '0',
     },
     PREREQ_PM => {
         #'ABC'              => '1.6',
