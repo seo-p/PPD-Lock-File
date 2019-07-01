@@ -2,6 +2,10 @@
 
 =encoding utf8
 
+=head1 NAME
+
+PPD::Lock::File - ファイルベースの排他制御機構を提供するモジュール
+
 =head1 PPD::Lock::File
 
 ファイルベースのロック機構 == 排他制御機構を提供するモジュールです。
