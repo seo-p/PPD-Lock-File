@@ -21,7 +21,7 @@ $ prove -lc t/lib-PPD-Lock-File.pm.t
 use strict;
 use warnings;
 
-use Test::More;
+use Test::More tests	=> 5;
 use Test::Exception;
 # use Test::SharedFork;	# for fork() in Test but not core module
 use File::Spec;
@@ -41,13 +41,16 @@ exit;
 sub main
 {
 	my $fail = 0;
+
+	my %attr = ();
+	$attr{directory} = dir($ENV{LOCK_DIR})->resolve if( exists $ENV{LOCK_DIR} );
 	
 	# 最も基本的なロックストーリー
 	subtest '01:Basic' => sub
 	{
 		use_ok('PPD::Lock::File');
-	    
-	    my $lockFile	 = PPD::Lock::File->new();
+
+	    my $lockFile	 = PPD::Lock::File->new( \%attr );
 		
 	    $fail ++ unless ok ($lockFile ,'Get 1st instance');
 		
@@ -57,7 +60,7 @@ sub main
 			$fail ++;
 		}
 		
-		my $lockFile2 	= PPD::Lock::File->new();
+		my $lockFile2 	= PPD::Lock::File->new( \%attr );
 		$fail ++ unless ok ($lockFile2 ,'Get 2nd instance');
 		
 		$fail ++ unless ok ( ! $lockFile2->getLock() ,'2nd instance must fail get lock.'); # $lockFile がロックされているのでロック出来てはいけない。
@@ -81,9 +84,9 @@ sub main
 		{
 			skip 'Because forward tests not passed.' ,0 if( $fail );
 			
-			my $lockFile2 	= PPD::Lock::File->new();
+			my $lockFile2 	= PPD::Lock::File->new( \%attr );
 			{
-				my $lockFile	 = PPD::Lock::File->new();
+				my $lockFile	 = PPD::Lock::File->new( \%attr );
 				$fail ++ unless ok ($lockFile->getLock() ,'instance succeed get lock.');
 			}
 			
@@ -102,7 +105,7 @@ sub main
 			# parent process
 			waitpid $childPID,0;
 			
-			my $lockFile2 	= PPD::Lock::File->new();
+			my $lockFile2 	= PPD::Lock::File->new( \%attr );
 			$fail ++ unless ok( $lockFile2->isLockFileExists , 'parent check lock file exists' );
 			$fail ++ unless ok( $lockFile2->getLock , 'parent getlock' );
 			
@@ -115,7 +118,9 @@ sub main
 		{
 			# 子プロセス
 			# ロックした状態を作成して終了します。
-			my $lockFile	 = PPD::Lock::File->new({'unlock_on_destructor'=> 0});
+			my %copied = ( %attr , 'unlock_on_destructor'=> 0 );
+			my $lockFile	 = PPD::Lock::File->new( \%copied );
+
 			$fail ++ unless ok( $lockFile ,'Get 1st instance');
 			$fail ++ unless ok( $lockFile->getLock() ,'getLock succeed.');
 			
@@ -135,10 +140,11 @@ sub main
 		my $customExt = '.lck';
 		
 		my $keyword = "rock file name";
-		my $lock1 = PPD::Lock::File->new( $keyword ,{ kConfigKey_extention => $customExt});
+		my %copied_attr = ( %attr , kConfigKey_extention => $customExt );
+		my $lock1 = PPD::Lock::File->new( $keyword , \%copied_attr );
 		$fail ++ unless ok($lock1 , 'construct $lock1');
 		
-		my $lock2 = PPD::Lock::File->new( $keyword ,{ kConfigKey_extention => $customExt});
+		my $lock2 = PPD::Lock::File->new( $keyword ,\%copied_attr );
 		$fail ++ unless ok($lock2 , 'construct $lock2 using custom extention.');
 		
 		unless( ok($lock1->getLock , "lock 1 getLock") )
@@ -234,7 +240,7 @@ sub main
 					# child process
 					# ロックが取得できたら flock 無しで read -> close -> インクリメント -> write -> close します。
 					# $PPD::Lock::File::DEBUG_LOG = 1;
-					my $lockFile	 = PPD::Lock::File->new();
+					my $lockFile	 = PPD::Lock::File->new( \%attr );
 					
 					while( 1 )
 					{
