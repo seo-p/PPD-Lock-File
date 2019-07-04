@@ -206,10 +206,10 @@ sub main
 				if( $pid )
 				{
 					# parent process
-					my $colNum = $ENV{'COLUMNS'} || 80;
-					print "\x1B[".$colNum."D";
-					print "\x1B[0K";
-					printf "Fork process %d was established.",$testNum - $testCounter + 1;
+					# my $colNum = $ENV{'COLUMNS'} || 80;
+					# print "\x1B[".$colNum."D";
+					# print "\x1B[0K";
+					# printf "Fork process %d was established.",$testNum - $testCounter + 1;
 					
 					$testCounter --;
 					push @queue,$pid;
@@ -241,6 +241,7 @@ sub main
 					# ロックが取得できたら flock 無しで read -> close -> インクリメント -> write -> close します。
 					# $PPD::Lock::File::DEBUG_LOG = 1;
 					my $lockFile	 = PPD::Lock::File->new( \%attr );
+					my @because		= ();
 					
 					while( 1 )
 					{
@@ -270,6 +271,16 @@ sub main
 							$lockFile->unlock();
 							last;
 						}
+						else
+						{
+							push @because, $lockFile->because;
+						}
+					}
+
+					if( $PPD::Lock::File::DEBUG_LOG && @because )
+					{
+						diag "[$$] becauses :";
+						diag join("\n", map { $_ = "[$$] $_" } @because );
 					}
 					
 					exit;
