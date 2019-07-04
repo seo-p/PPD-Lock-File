@@ -224,7 +224,7 @@ my $splitLockFilePath = sub
 	{
 		'$pid' => $pid
 		,'$time'=> $time
-		,'$lockedFilePath' => $lockedFilePath
+		,'$lockedFilePath' => "$lockedFilePath"
 		,'$baseName' => $baseName
 	});
 	
@@ -453,11 +453,13 @@ sub getLock
 	my $renameFrom	= $self->$getBaseFilePath();
 	my $renameTo	= $self->$genLockFilePath();
 	
-	$DEBUG_OUT->({'$renameFrom' => $renameFrom,'$renameTo' => $renameTo});
+	$DEBUG_OUT->({'$renameFrom' => "$renameFrom",'$renameTo' => "$renameTo"});
 	
 	if( rename( $renameFrom , $renameTo ) )
 	{
 		$self->{'locked'} = $renameTo;
+
+		$DEBUG_OUT->( { msg => "rename scceed from '$renameFrom' to '$renameTo'."} );
 		return 1;
 	}
 	
@@ -465,41 +467,49 @@ sub getLock
 	my $lockedFile = $self->isLockFileExists();
 	if( $lockedFile )
 	{
-		$DEBUG_OUT->({'already locked' => $lockedFile});
+		$DEBUG_OUT->({'already locked' => "$lockedFile"});
 		
 		my $splited = $self->$splitLockFilePath($lockedFile);
-		
-		if( $splited->{pid} > 0
-		 && $splited->{pid} != $$
-		 && ! kill 0 ,$splited->{pid} )
+
+		if( $splited->{pid} > 0			# 正しくプロセスIDが切り出せている
+		 && $splited->{pid} != $$		# 自分自身ではない
+		 && ! kill 0 ,$splited->{pid} )	# 対象プロセスは生存していない
 		 {
 			 if( rename( $lockedFile , $renameTo ) )
 			 {
-				 $DEBUG_OUT->({'force renameFrom' => $lockedFile,'$renameTo' => $renameTo});
+				 $DEBUG_OUT->({'force renameFrom' => "$lockedFile",'$renameTo' => "$renameTo"});
 				 $self->{'locked'} = $renameTo;
 	 			return 1;
 			 }
 			 else
 			 {
 				 # for debug
-				  $self->because('fail rename '.$lockedFile.' to '.$renameTo);
+				  $self->because('fail rename '.$lockedFile.' to '.$renameTo.' because "'.$!.'".');
 			 }
 		 }
 		 else
 		 {
-			 # for debug
-			 if( $splited->{pid} <= 0 )
-			 {
-				 $self->because('lock file pid <= 0');
-			 }
-			 elsif( $splited->{pid} != $$ )
-			 {
-				  $self->because('lock file pid == $$');
-			 }
-			 else
-			 {
-				 $self->because('kill 0,'.$splited->{pid}.' returns positive value.');
-			 }
+			# for debug
+			my @becauses = ();
+			if( $splited->{pid} <= 0 )
+			{
+				push @becauses , 'lock file pid <= 0';
+			}
+			if( $splited->{pid} != $$ )
+			{
+				push @becauses ,'lock file pid != $$'."($$)";
+			}
+			
+			if( ! kill 0 ,$splited->{pid} )
+			{
+				push @becauses , 'kill 0,'.$splited->{pid}.' returns positive value.';
+			}
+
+			if( @becauses )
+			{
+				unshift @becauses ,'$splited->{pid} : '.$splited->{pid};
+				$self->because( join("\n", map {$_ = "- $_"} @becauses ));
+			}
 		 }
 	}
 	
@@ -556,6 +566,8 @@ sub unlock
 	
 	if( rename( $self->{'locked'} ,$self->$getBaseFilePath() ) )
 	{
+		$DEBUG_OUT->({msg => "Unlock $self->{'locked'} to ".$self->$getBaseFilePath() });
+
 		$self->{'locked'} = undef;
 		return 1;
 	}
@@ -647,7 +659,19 @@ sub isLockFileExists
 	my @children = grep {$_->basename =~ /^$quotedBasename(?:$lockExtention.+){0,1}$/} $searchDir->children;
 	if( @children )
 	{
-		warn 'exisits several lockfile.' if( scalar(@children) > 1 );
+		if( scalar(@children) > 1 )
+		{
+			warn "[$$] WARN: exisits several lockfile : ".join(" , ", @children );
+			if( $DEBUG_LOG )
+			{
+				opendir(my $dh , "$searchDir" );
+				my @items = readdir $dh;
+				closedir $dh;
+				$DEBUG_OUT->({ '$searchDir' => "$searchDir" ,'dir list' => \@items });
+			}
+			
+		}
+		
 		return shift @children;
 	}
 	
