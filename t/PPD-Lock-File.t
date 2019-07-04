@@ -23,7 +23,7 @@ use warnings;
 
 use Test::More tests	=> 5;
 use Test::Exception;
-# use Test::SharedFork;	# for fork() in Test but not core module
+use Test::SharedFork;	# for fork() in Test but not core module
 use File::Spec;
 use Path::Class;
 
